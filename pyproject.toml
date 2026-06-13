@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scenesculpt"
+version = "0.1.0"
+description = "Turn phone videos into editable 3D scenes using Gaussian Splatting"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "gsplat>=1.0.0",
+    "viser>=0.2.3",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    "tqdm>=4.65",
+    "scipy>=1.11",
+    "plyfile>=1.0",
+    "tyro>=0.7",
+    "rich>=13.0",
+    "pycolmap>=0.6.0",
+    "torchmetrics[image]>=1.2",
+    "natsort>=8.4",
+]
+
+[project.optional-dependencies]
+segmentation = [
+    "segment-anything>=1.0",
+    "pycocotools>=2.0",
+]
+
+[project.scripts]
+scenesculpt-process = "scripts.process_video:main"
+scenesculpt-edit = "scripts.launch_editor:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scenesculpt*", "scripts*"]

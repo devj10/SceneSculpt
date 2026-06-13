@@ -50,6 +50,7 @@ class SceneEditor:
 
         self._upload_splats()
         self._setup_gui()
+        self._setup_click_handler()
 
     # ──────────────────────────────────────── KDTree (lazy, invalidated on edit)
 
@@ -77,7 +78,7 @@ class SceneEditor:
         rgbs = self._display_colors()
         opacities = self.scene.real_opacities().numpy()
 
-        handle = self.server.scene.add_gaussian_splats(
+        self.server.scene.add_gaussian_splats(
             name="/scene",
             centers=centers,
             covariances=covs,
@@ -85,22 +86,24 @@ class SceneEditor:
             opacities=opacities[:, None],  # viser expects [N, 1]
         )
 
-        # Click handler lives on the node handle, not on client.scene
-        @handle.on_click
-        def on_click(event) -> None:
-            origin = np.array(event.ray_origin, dtype=np.float32)
-            direction = np.array(event.ray_direction, dtype=np.float32)
-            direction /= np.linalg.norm(direction) + 1e-8
-            hit = self._ray_nearest_gaussian(origin, direction)
-            with self._lock:
-                self._select_at(hit, expand=False)
-
     # ──────────────────────────────────────── GUI
 
     def _setup_gui(self) -> None:
+        has_objects = len(self.scene.unique_object_ids()) > 0
         with self.server.gui.add_folder("Selection"):
+            self._object_mode = self.server.gui.add_checkbox(
+                "Object Select Mode",
+                initial_value=has_objects,
+            )
+            if has_objects:
+                n_obj = len(self.scene.unique_object_ids())
+                self.server.gui.add_markdown(f"*{n_obj} objects segmented — click any to select*")
+            else:
+                self.server.gui.add_markdown(
+                    "*No object IDs — run `modal_segment.py` first for object-level selection*"
+                )
             self._radius_slider = self.server.gui.add_slider(
-                "Radius",
+                "Radius (fallback)",
                 min=0.005,
                 max=2.0,
                 step=0.005,
@@ -155,6 +158,18 @@ class SceneEditor:
             with self._lock:
                 self._save()
 
+    def _setup_click_handler(self) -> None:
+        @self.server.on_client_connect
+        def on_connect(client: viser.ClientHandle) -> None:
+            @client.scene.on_pointer_event(event_type="click")
+            def on_click(event: viser.ScenePointerEvent) -> None:
+                origin = np.array(event.ray_origin, dtype=np.float32)
+                direction = np.array(event.ray_direction, dtype=np.float32)
+                direction /= np.linalg.norm(direction) + 1e-8
+                hit = self._ray_nearest_gaussian(origin, direction)
+                with self._lock:
+                    self._select_at(hit, expand=False)
+
     # ──────────────────────────────────────── selection logic
 
     def _ray_nearest_gaussian(self, origin: np.ndarray, direction: np.ndarray) -> np.ndarray:
@@ -166,10 +181,21 @@ class SceneEditor:
         return means[np.argmin(np.linalg.norm(means - closest, axis=1))]
 
     def _select_at(self, point: np.ndarray, expand: bool = False) -> None:
-        idxs = self.kdtree.query_ball_point(point, r=float(self._radius_slider.value))
         if not expand:
             self._selected[:] = False
-        self._selected[idxs] = True
+
+        if self._object_mode.value:
+            # Find the nearest Gaussian and select all with the same object_id
+            _, idx = self.kdtree.query(point)
+            obj_id = int(self.scene.object_ids[idx].item())
+            if obj_id >= 0:
+                self._selected |= (self.scene.object_ids.numpy() == obj_id)
+            else:
+                # Unassigned Gaussian — fall back to radius selection
+                self._selected[self.kdtree.query_ball_point(point, r=float(self._radius_slider.value))] = True
+        else:
+            self._selected[self.kdtree.query_ball_point(point, r=float(self._radius_slider.value))] = True
+
         self._refresh_status()
         self._upload_splats()
 
@@ -182,6 +208,13 @@ class SceneEditor:
         n = int(self._selected.sum())
         if n == 0:
             self._status_label.content = "*No Gaussians selected*"
+        elif self._object_mode.value:
+            ids = self.scene.object_ids.numpy()[self._selected]
+            unique = np.unique(ids[ids >= 0])
+            if len(unique) == 1:
+                self._status_label.content = f"**Object {unique[0]}** — {n:,} Gaussians"
+            else:
+                self._status_label.content = f"**{n:,}** Gaussians selected"
         else:
             self._status_label.content = f"**{n:,}** Gaussians selected"
 
