@@ -124,7 +124,7 @@ def main(
 ) -> None:
     segment.remote(scene, subsample_cameras=subsample_cameras)
 
-    print(f"\n✅  Segmentation complete!")
+    print(f"\nSegmentation complete!")
     print(f"Download:")
     print(f"  modal volume get scenesculpt-scenes {scene}/splats_segmented.ply ./splats.ply")
     print(f"Launch editor:")
