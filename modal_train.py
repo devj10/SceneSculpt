@@ -144,7 +144,7 @@ def main(
     # Ship to Modal
     run_pipeline.remote(frames_data, scene, train_iterations=iterations)
 
-    print("\n✅  Training complete!")
+    print("\nTraining complete!")
     print(f"Download your scene:")
     print(f"  modal volume get scenesculpt-scenes {scene}/splats.ply ./splats.ply")
     print(f"Launch the editor:")
