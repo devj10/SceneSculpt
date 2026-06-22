@@ -50,24 +50,24 @@ def main() -> None:
     colmap_dir = cfg.output / "colmap"
     splats_dir = cfg.output / "splats"
 
-    # ── 1. Extract frames
+    # Extract frames
     console.rule("[bold cyan]Step 1 / 3 — Frame extraction[/]")
     extract_frames(cfg.video, frames_dir, fps=cfg.fps, max_frames=cfg.max_frames)
 
-    # ── 2. COLMAP SfM
+    # COLMAP SfM
     console.rule("[bold cyan]Step 2 / 3 — Structure from Motion (COLMAP)[/]")
     recon_dir = run_colmap(frames_dir, colmap_dir, colmap_bin=cfg.colmap_bin, sequential=True)
     cameras = load_cameras(recon_dir, frames_dir)
     point_cloud = load_point_cloud(recon_dir)
     console.print(f"Sparse point cloud: [green]{len(point_cloud):,}[/] points")
 
-    # ── 3. Train Gaussians
+    # Train Gaussians
     console.rule("[bold cyan]Step 3 / 3 — Gaussian Splatting training[/]")
     train_cfg = TrainConfig(num_iterations=cfg.train_iterations)
     trainer = GaussianTrainer(cameras, splats_dir, point_cloud=point_cloud, config=train_cfg)
     scene = trainer.train()
 
-    # ── optional: auto-segment with SAM
+    # Auto-segment with SAM
     if cfg.sam_checkpoint:
         console.rule("[bold cyan]Optional — SAM segmentation[/]")
         from scenesculpt.segmentation.segment import auto_segment
