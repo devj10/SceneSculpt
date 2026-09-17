@@ -1,6 +1,6 @@
 # SceneSculpt
 
-Turn a phone video into an editable 3D scene. SceneSculpt reconstructs real-world environments using 3D Gaussian Splatting and lets you select, delete, move, and recolor objects directly in 3D space — no 3D modeling experience required.
+Turn a phone video into an editable 3D scene. SceneSculpt reconstructs real-world environments using 3D Gaussian Splatting and lets you select, delete, move, and recolor objects directly in 3D space. 
 
 ---
 
